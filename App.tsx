@@ -161,7 +161,7 @@ function App() {
           <section className="min-h-screen relative z-20 bg-white/80 backdrop-blur-sm py-24">
             <div className="container mx-auto px-6">
               <h2 className="font-serif text-4xl md:text-5xl text-stone-dark mb-10 text-center">Gallery</h2>
-              <InstagramCollage />
+              {/* <InstagramCollage /> */}
             </div>
           </section>
 
