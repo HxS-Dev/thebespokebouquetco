@@ -2,12 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Menu, Flower, Star, Instagram, Pin } from 'lucide-react';
 import { ThreeBackground } from './components/ThreeBackground';
-import { SeasonalityChart } from './components/SeasonalityChart';
 import { ShopModal } from './components/ShopModal';
 import { CartDrawer } from './components/CartDrawer';
 import { LoadingScreen } from './components/LoadingScreen';
 import { fetchProducts, fetchPageContent } from './services/sanityMock';
 import { Product, CartItem } from './types';
+import InstagramCollage from './components/InstagramCollage';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -113,14 +113,10 @@ function App() {
           {/* Navigation */}
           <motion.nav 
             style={{ y: headerY }}
-            className="fixed top-0 left-0 right-0 z-40 px-6 py-6 flex justify-between items-center mix-blend-multiply pointer-events-none"
+            className="fixed top-0 left-0 right-0 z-50 px-6 py-6 flex justify-between items-center"
           >
-            <div className="font-serif text-2xl font-bold tracking-tighter cursor-pointer pointer-events-auto" onClick={() => window.scrollTo({top:0, behavior:'smooth'})}>
-              B&B Co.
-            </div>
-            <div className="flex items-center gap-6 pointer-events-auto">
-              <button className="hidden md:block font-serif hover:text-rose-dust transition-colors">Journal</button>
-              <button className="hidden md:block font-serif hover:text-rose-dust transition-colors">Weddings</button>
+            <img src="/public/logo.jpg" alt="B&B Co. Logo" className="h-10 w-auto cursor-pointer pointer-events-auto" onClick={() => window.scrollTo({top:0, behavior:'smooth'})} />
+            <div className="flex items-center gap-6">
               <button 
                 onClick={() => setIsCartOpen(true)}
                 className="p-2 rounded-full hover:bg-stone-dark/5 transition-colors relative"
@@ -141,7 +137,6 @@ function App() {
           {/* Hero Section */}
           <section className="h-screen w-full flex flex-col items-center justify-center relative z-10 px-4 pointer-events-none">
             <motion.div 
-              style={{ opacity: heroOpacity, scale: heroScale }}
               className="text-center pointer-events-auto"
             >
               <h2 className="text-rose-dust font-serif italic text-xl md:text-2xl mb-4 tracking-widest">Est. 2024</h2>
@@ -162,51 +157,11 @@ function App() {
             </motion.div>
           </section>
 
-          {/* About / Parallax Section */}
+          {/* Instagram Collage Section */}
           <section className="min-h-screen relative z-20 bg-white/80 backdrop-blur-sm py-24">
             <div className="container mx-auto px-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-                <div>
-                   <motion.div
-                     initial={{ opacity: 0, x: -50 }}
-                     whileInView={{ opacity: 1, x: 0 }}
-                     transition={{ duration: 0.8 }}
-                   >
-                     <span className="text-rose-dust font-serif text-lg mb-2 block">Our Philosophy</span>
-                     <h2 className="font-serif text-4xl md:text-5xl text-stone-dark mb-6">Curated from the wildest gardens.</h2>
-                     <p className="text-stone-600 leading-relaxed text-lg mb-8">
-                       {pageContent?.aboutText || "Crafting elegance from the finest seasonal blooms."}
-                     </p>
-                     <div className="flex gap-4 mb-8">
-                       <div className="flex items-center gap-2">
-                         <Flower className="text-rose-dust w-5 h-5" />
-                         <span className="text-sm font-bold uppercase tracking-wide">Sustainable</span>
-                       </div>
-                       <div className="flex items-center gap-2">
-                         <Star className="text-rose-dust w-5 h-5" />
-                         <span className="text-sm font-bold uppercase tracking-wide">Artisan</span>
-                       </div>
-                     </div>
-                     
-                     {/* Seasonality Chart Integration */}
-                     <SeasonalityChart />
-                   </motion.div>
-                </div>
-                
-                <motion.div 
-                   initial={{ opacity: 0, scale: 0.8 }}
-                   whileInView={{ opacity: 1, scale: 1 }}
-                   transition={{ duration: 0.8 }}
-                   className="h-[600px] bg-stone-100 rounded-full overflow-hidden relative shadow-2xl"
-                >
-                  <img 
-                    src="https://picsum.photos/id/1062/800/1200" 
-                    alt="Florist at work" 
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-1000"
-                  />
-                  <div className="absolute inset-0 border-[1px] border-white/20 rounded-full m-4 pointer-events-none" />
-                </motion.div>
-              </div>
+              <h2 className="font-serif text-4xl md:text-5xl text-stone-dark mb-10 text-center">Gallery</h2>
+              <InstagramCollage />
             </div>
           </section>
 
