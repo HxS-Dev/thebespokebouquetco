@@ -115,7 +115,7 @@ function App() {
             style={{ y: headerY }}
             className="fixed top-0 left-0 right-0 z-50 px-6 py-6 flex justify-between items-center"
           >
-            <img src="/public/logo.jpg" alt="B&B Co. Logo" className="h-10 w-auto cursor-pointer pointer-events-auto" onClick={() => window.scrollTo({top:0, behavior:'smooth'})} />
+            <img src="/logo.jpg" alt="B&B Co. Logo" className="h-10 w-auto cursor-pointer pointer-events-auto" onClick={() => window.scrollTo({top:0, behavior:'smooth'})} />
             <div className="flex items-center gap-6">
               <button 
                 onClick={() => setIsCartOpen(true)}
