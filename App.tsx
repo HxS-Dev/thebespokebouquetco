@@ -7,7 +7,6 @@ import { CartDrawer } from './components/CartDrawer';
 import { LoadingScreen } from './components/LoadingScreen';
 import { fetchProducts, fetchPageContent } from './services/sanityMock';
 import { Product, CartItem } from './types';
-import InstagramCollage from './components/InstagramCollage';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -15,6 +14,7 @@ function App() {
   const [pageContent, setPageContent] = useState<any>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [frameloop, setFrameloop] = useState("never");
   
   // Cart State
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -161,7 +161,6 @@ function App() {
           <section className="min-h-screen relative z-20 bg-white/80 backdrop-blur-sm py-24">
             <div className="container mx-auto px-6">
               <h2 className="font-serif text-4xl md:text-5xl text-stone-dark mb-10 text-center">Gallery</h2>
-              {/* <InstagramCollage /> */}
             </div>
           </section>
 
