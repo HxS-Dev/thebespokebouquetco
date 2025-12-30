@@ -11,6 +11,7 @@ interface ImageCarouselProps {
   imageHeight?: number;
   friction?: number;
   dragSensitivity?: number;
+  onImageClick?: (index: number) => void;
 }
 
 export const ImageCarousel: React.FC<ImageCarouselProps> = ({
@@ -26,6 +27,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
   imageHeight = 4.5,
   friction = 0.95,
   dragSensitivity = 0.05,
+  onImageClick,
 }) => {
   // Calculate radius based on number of images to prevent overlap
   const radius = customRadius || Math.max(8, images.length * 0.8);
@@ -167,7 +169,20 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
         return (
           <group key={idx} position={[x, yPos, z]} rotation={[0, angle, 0]}>
             {/* Main image with rounded corners - double sided */}
-            <mesh>
+            <mesh
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onImageClick) {
+                  onImageClick(idx);
+                }
+              }}
+              onPointerOver={() => {
+                document.body.style.cursor = 'pointer';
+              }}
+              onPointerOut={() => {
+                document.body.style.cursor = 'auto';
+              }}
+            >
               <extrudeGeometry
                 args={[
                   cardShape,

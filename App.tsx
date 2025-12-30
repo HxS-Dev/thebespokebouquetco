@@ -110,8 +110,8 @@ function App() {
           </section>
 
           {/* Gallery Section */}
-          <section className="min-h-screen relative z-20 bg-white/80 backdrop-blur-sm py-24">
-            <h2 className="font-serif text-4xl md:text-5xl text-stone-dark mb-10 text-center px-6">Gallery</h2>
+          <section className="relative z-20 bg-white/80 backdrop-blur-sm pt-24 pb-0 px-0 m-0">
+            <h2 className="font-serif text-4xl md:text-5xl text-stone-dark text-center m-0 p-0">Gallery</h2>
             <Gallery />
           </section>
 

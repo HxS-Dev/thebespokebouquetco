@@ -22,6 +22,19 @@ export interface SanityConfig {
   dataset: string;
 }
 
+export interface CarouselImage {
+  _id: string;
+  title: string;
+  description: string;
+  image: {
+    asset: {
+      url: string;
+    };
+    alt?: string;
+  };
+  order: number;
+}
+
 // Chart Data Types
 export interface SeasonalityData {
   month: string;
