@@ -3,13 +3,19 @@ import React, { Suspense, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { ImageCarousel } from "./ImageCarousel";
 import { CarouselImageModal } from "./CarouselImageModal";
+import { OrderCustomizeModal } from "./OrderCustomizeModal";
 import { fetchCarouselImages } from "../services/sanity";
-import { CarouselImage } from "../types";
+import { CarouselImage, CartItemCustom } from "../types";
 
-export const Gallery: React.FC = () => {
+interface GalleryProps {
+  onAddToCart?: (item: CartItemCustom) => void;
+}
+
+export const Gallery: React.FC<GalleryProps> = ({ onAddToCart }) => {
   const [carouselImages, setCarouselImages] = useState<CarouselImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<CarouselImage | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
   useEffect(() => {
     const loadCarouselImages = async () => {
@@ -32,6 +38,27 @@ export const Gallery: React.FC = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setTimeout(() => setSelectedImage(null), 150); // Clear after animation
+  };
+
+  const handleOrderSimilar = () => {
+    setIsModalOpen(false);
+    setIsOrderModalOpen(true);
+  };
+
+  const handleBackToPreview = () => {
+    setIsOrderModalOpen(false);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseOrderModal = () => {
+    setIsOrderModalOpen(false);
+    setTimeout(() => setSelectedImage(null), 150);
+  };
+
+  const handleAddToCart = (item: CartItemCustom) => {
+    if (onAddToCart) {
+      onAddToCart(item);
+    }
   };
 
   // Calculate camera settings based on number of images
@@ -83,6 +110,16 @@ export const Gallery: React.FC = () => {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         image={selectedImage}
+        onOrderSimilar={handleOrderSimilar}
+      />
+
+      {/* Modal for customizing order */}
+      <OrderCustomizeModal
+        isOpen={isOrderModalOpen}
+        onClose={handleCloseOrderModal}
+        onBack={handleBackToPreview}
+        image={selectedImage}
+        onAddToCart={handleAddToCart}
       />
     </>
   );

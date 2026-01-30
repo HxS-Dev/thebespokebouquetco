@@ -22,6 +22,20 @@ export interface SanityConfig {
   dataset: string;
 }
 
+export interface BouquetSize {
+  _id: string;
+  name: string;
+  numberOfRoses: number;
+  price: number;
+}
+
+export interface AddOn {
+  _id: string;
+  name: string;
+  price?: number;
+  requiresExtraInfo: boolean;
+}
+
 export interface CarouselImage {
   _id: string;
   title: string;
@@ -33,6 +47,27 @@ export interface CarouselImage {
     alt?: string;
   };
   order: number;
+  bouquetSizes?: BouquetSize[];
+  addOns?: AddOn[];
+}
+
+export interface CustomOrder {
+  carouselImage: CarouselImage;
+  selectedSize: BouquetSize;
+  selectedAddOns: AddOn[];
+  addOnDetails: { [addOnId: string]: string };
+  quantity: number;
+}
+
+export interface CartItemCustom {
+  _id: string;
+  name: string;
+  imageUrl: string;
+  size: BouquetSize;
+  addOns: AddOn[];
+  addOnDetails: { [addOnId: string]: string };
+  quantity: number;
+  totalPrice: number;
 }
 
 // Chart Data Types

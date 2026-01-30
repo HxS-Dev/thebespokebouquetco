@@ -61,20 +61,24 @@ const FloatingFlowers: React.FC<{ count: number }> = ({ count }) => {
 
   // Generate initial positions, rotations, scales, and colors
   const instances = useMemo(() => {
-    return Array.from({ length: count }).map(() => ({
-      position: new THREE.Vector3(
-        (Math.random() - 0.5) * 28,
-        (Math.random() - 0.5) * 22,
-        (Math.random() - 0.5) * 10 - 2
-      ),
-      rotation: new THREE.Euler(
+    return Array.from({ length: count }).map(() => {
+      const baseRotation = new THREE.Euler(
         Math.random() * 0.5,
         Math.random() * Math.PI * 2,
         Math.random() * 0.2
-      ),
-      scale: 0.6 + Math.random() * 0.6,
-      color: new THREE.Color(ROSE_PALETTE[Math.floor(Math.random() * ROSE_PALETTE.length)])
-    }));
+      );
+      return {
+        position: new THREE.Vector3(
+          (Math.random() - 0.5) * 28,
+          (Math.random() - 0.5) * 22,
+          (Math.random() - 0.5) * 10 - 2
+        ),
+        rotation: baseRotation.clone(),
+        baseRotation: baseRotation,
+        scale: 0.6 + Math.random() * 0.6,
+        color: new THREE.Color(ROSE_PALETTE[Math.floor(Math.random() * ROSE_PALETTE.length)])
+      };
+    });
   }, [count]);
 
   useFrame((state) => {
@@ -117,9 +121,10 @@ const FloatingFlowers: React.FC<{ count: number }> = ({ count }) => {
       vel.multiplyScalar(0.95);
       inst.position.add(vel);
 
-      // Rotation drift
-      inst.rotation.x += (Math.sin(t * 0.1) - inst.rotation.x) * 0.02;
-      inst.rotation.y += (Math.cos(t * 0.1) - inst.rotation.y) * 0.02;
+      // Gentle rotation wobble around original orientation
+      inst.rotation.x = inst.baseRotation.x + Math.sin(t * 0.3) * 0.1;
+      inst.rotation.y = inst.baseRotation.y + t * 0.05; // Slow spin around stem
+      inst.rotation.z = inst.baseRotation.z + Math.cos(t * 0.2) * 0.05;
 
       // Update instanced mesh
       dummy.position.copy(inst.position);

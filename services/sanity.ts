@@ -54,7 +54,19 @@ export const fetchCarouselImages = async (): Promise<CarouselImage[]> => {
       },
       alt
     },
-    order
+    order,
+    bouquetSizes[]-> {
+      _id,
+      name,
+      numberOfRoses,
+      price
+    },
+    addOns[]-> {
+      _id,
+      name,
+      price,
+      requiresExtraInfo
+    }
   }`;
 
   return await client.fetch(query);

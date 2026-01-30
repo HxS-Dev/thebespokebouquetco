@@ -1,49 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MapPin, CreditCard, Lock, AlertCircle } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import { CartItem } from '../types';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import { X, MapPin, Truck, Package, Store, Instagram, Mail, ChevronDown, AlertCircle, Check, Loader2, Calendar } from 'lucide-react';
+import emailjs from '@emailjs/browser';
+import { CartItem, CartItemCustom } from '../types';
 
-// Fix default marker icon in Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+// EmailJS Configuration - Replace these with your actual EmailJS credentials
+// Sign up at https://www.emailjs.com/ (free tier available)
+const EMAILJS_CONFIG = {
+  serviceId: 'YOUR_SERVICE_ID',        // e.g., 'service_abc123'
+  ownerTemplateId: 'YOUR_OWNER_TEMPLATE_ID',  // Template for order notification to you
+  customerTemplateId: 'YOUR_CUSTOMER_TEMPLATE_ID', // Template for confirmation to customer
+  publicKey: 'YOUR_PUBLIC_KEY',        // Your EmailJS public key
+};
+
+// Shop email address
+const SHOP_EMAIL = 'hello@bespokebouquet.co';
 
 interface CheckoutPageProps {
   isOpen: boolean;
   onClose: () => void;
   items: CartItem[];
+  customItems?: CartItemCustom[];
   subtotal: number;
 }
 
-interface LocationData {
-  lat: number;
-  lng: number;
-  address: string;
+interface FAQItem {
+  question: string;
+  answer: string;
 }
 
-// Base location (shop location)
-const SHOP_LOCATION = { lat: 51.5074, lng: -0.1278 }; // London - update with actual shop location
+// Shop locations for distance calculation
+const SHOP_LOCATIONS = [
+  { postcode: 'SL4 3LR', lat: 51.4816, lng: -0.6095, name: 'Windsor' },
+  { postcode: 'MK5 8DJ', lat: 52.0250, lng: -0.7590, name: 'Milton Keynes' },
+];
 
-// Calculate delivery price based on distance
-const calculateDeliveryPrice = (distance: number): number => {
-  // Base delivery fee
-  const baseFee = 5;
+const PERSONAL_DELIVERY_PRICE = 10;
+const ROYAL_MAIL_PRICE = 8;
+const MAX_LOCAL_DISTANCE_MILES = 10;
 
-  // $2 per km
-  const distanceFee = distance * 2;
+// FAQ items - placeholder content, to be updated later
+const FAQ_ITEMS: FAQItem[] = [
+  {
+    question: 'How long will my flowers last?',
+    answer: 'Content to be provided.',
+  },
+  {
+    question: 'Do you deliver on weekends?',
+    answer: 'Content to be provided.',
+  },
+  {
+    question: 'Can I change my order after placing it?',
+    answer: 'Content to be provided.',
+  },
+  {
+    question: 'What areas do you deliver to?',
+    answer: 'Content to be provided.',
+  },
+];
 
-  return Math.round(baseFee + distanceFee);
-};
-
-// Calculate distance between two coordinates (Haversine formula)
-const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-  const R = 6371; // Earth's radius in km
+// Calculate distance between two coordinates (Haversine formula) in miles
+const calculateDistanceMiles = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 3959; // Earth's radius in miles
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a =
@@ -54,84 +72,278 @@ const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c;
 };
 
-// Map click handler component
-function LocationMarker({ setLocation }: { setLocation: (loc: LocationData) => void }) {
-  const [position, setPosition] = useState<[number, number] | null>(null);
+// FAQ Accordion Item
+const FAQAccordion: React.FC<{ item: FAQItem; isOpen: boolean; onToggle: () => void }> = ({ item, isOpen, onToggle }) => (
+  <div className="border-b border-stone-200">
+    <button
+      onClick={onToggle}
+      className="w-full py-4 flex items-center justify-between text-left hover:text-rose-dust transition-colors"
+    >
+      <span className="font-serif text-stone-dark">{item.question}</span>
+      <ChevronDown className={`w-5 h-5 text-stone-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+    </button>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="overflow-hidden"
+        >
+          <p className="pb-4 text-stone-600 text-sm leading-relaxed">{item.answer}</p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
 
-  const map = useMapEvents({
-    click(e) {
-      const { lat, lng } = e.latlng;
-      setPosition([lat, lng]);
-
-      // Reverse geocoding to get address
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-        .then(res => res.json())
-        .then(data => {
-          setLocation({
-            lat,
-            lng,
-            address: data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-          });
-        })
-        .catch(() => {
-          setLocation({
-            lat,
-            lng,
-            address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-          });
-        });
-    },
-  });
-
-  return position === null ? null : (
-    <Marker position={position}>
-      <Popup>Delivery Location</Popup>
-    </Marker>
-  );
-}
+type DeliveryOption = 'personal' | 'collection' | 'royalmail';
 
 export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   isOpen,
   onClose,
   items,
+  customItems = [],
   subtotal
 }) => {
-  const [location, setLocation] = useState<LocationData | null>(null);
-  const [deliveryPrice, setDeliveryPrice] = useState(0);
-  const [distance, setDistance] = useState(0);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [address, setAddress] = useState('');
+  const [postcode, setPostcode] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [specialInstructions, setSpecialInstructions] = useState('');
 
-  // Calculate delivery price when location changes
-  useEffect(() => {
-    if (location) {
-      const dist = calculateDistance(
-        SHOP_LOCATION.lat,
-        SHOP_LOCATION.lng,
-        location.lat,
-        location.lng
-      );
-      setDistance(dist);
-      setDeliveryPrice(calculateDeliveryPrice(dist));
-    }
-  }, [location]);
+  const [isLocalDelivery, setIsLocalDelivery] = useState<boolean | null>(null);
+  const [isCheckingPostcode, setIsCheckingPostcode] = useState(false);
+  const [postcodeError, setPostcodeError] = useState('');
+  const [deliveryOption, setDeliveryOption] = useState<DeliveryOption | null>(null);
+  const [deliveryDate, setDeliveryDate] = useState('');
 
-  const total = subtotal + deliveryPrice;
-  const canCheckout = location !== null && acceptedTerms;
-
-  const handleCheckout = async () => {
-    if (!canCheckout) return;
-
-    setIsProcessing(true);
-
-    // TODO: Integrate with Stripe Payment Element
-    // For now, just simulate processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      alert('Payment processing would happen here with Stripe!');
-    }, 2000);
+  // Calculate minimum delivery date (1 week from today)
+  const getMinDeliveryDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().split('T')[0];
   };
+
+  const formatDeliveryDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+  const [showTerms, setShowTerms] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState('');
+
+  // Check if postcode is within delivery range
+  const checkPostcode = async () => {
+    if (!postcode.trim()) {
+      setPostcodeError('Please enter a postcode');
+      return;
+    }
+
+    setIsCheckingPostcode(true);
+    setPostcodeError('');
+    setDeliveryOption(null);
+
+    try {
+      // Use postcodes.io API to geocode the postcode
+      const response = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode.trim())}`);
+      const data = await response.json();
+
+      if (data.status !== 200 || !data.result) {
+        setPostcodeError('Invalid postcode. Please check and try again.');
+        setIsLocalDelivery(null);
+        return;
+      }
+
+      const { latitude, longitude } = data.result;
+
+      // Check distance from both shop locations
+      let minDistance = Infinity;
+      for (const shop of SHOP_LOCATIONS) {
+        const distance = calculateDistanceMiles(latitude, longitude, shop.lat, shop.lng);
+        if (distance < minDistance) {
+          minDistance = distance;
+        }
+      }
+
+      setIsLocalDelivery(minDistance <= MAX_LOCAL_DISTANCE_MILES);
+    } catch (error) {
+      setPostcodeError('Unable to verify postcode. Please try again.');
+      setIsLocalDelivery(null);
+    } finally {
+      setIsCheckingPostcode(false);
+    }
+  };
+
+  // Reset delivery option when local delivery status changes
+  useEffect(() => {
+    setDeliveryOption(null);
+  }, [isLocalDelivery]);
+
+  // Reset email states when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setEmailSent(false);
+      setEmailError('');
+    }
+  }, [isOpen]);
+
+  // Calculate delivery price
+  const getDeliveryPrice = () => {
+    if (!deliveryOption) return 0;
+    if (deliveryOption === 'collection') return 0;
+    if (deliveryOption === 'personal') return PERSONAL_DELIVERY_PRICE;
+    if (deliveryOption === 'royalmail') return ROYAL_MAIL_PRICE;
+    return 0;
+  };
+
+  const deliveryPrice = getDeliveryPrice();
+  const total = subtotal + deliveryPrice;
+
+  // Build order items list for email
+  const buildItemsList = () => {
+    let itemsList = '';
+
+    items.forEach(item => {
+      itemsList += `• ${item.name} x${item.quantity} - £${(item.price * item.quantity).toFixed(2)}\n`;
+    });
+
+    customItems.forEach(item => {
+      itemsList += `• ${item.name} (${item.size.name}, ${item.size.numberOfRoses} roses) x${item.quantity} - £${item.totalPrice.toFixed(2)}\n`;
+      if (item.addOns.length > 0) {
+        itemsList += `  Add-ons: ${item.addOns.map(a => a.name).join(', ')}\n`;
+      }
+      Object.entries(item.addOnDetails).forEach(([id, detail]) => {
+        const addOn = item.addOns.find(a => a._id === id);
+        if (addOn && detail) {
+          itemsList += `  ${addOn.name} details: ${detail}\n`;
+        }
+      });
+    });
+
+    return itemsList;
+  };
+
+  // Build full order summary for Instagram/fallback
+  const buildOrderSummary = () => {
+    let summary = `NEW ORDER from ${name}\n\n`;
+    summary += `Contact: ${email} | ${phone}\n\n`;
+    summary += `ITEMS:\n${buildItemsList()}`;
+    summary += `\nDELIVERY: ${deliveryOption === 'collection' ? 'Collection' : deliveryOption === 'personal' ? 'Personal Delivery' : 'Royal Mail'}\n`;
+    summary += `Delivery Date: ${formatDeliveryDate(deliveryDate)}\n`;
+    if (deliveryOption !== 'collection') {
+      summary += `Address: ${address}, ${postcode}\n`;
+    }
+    if (specialInstructions) {
+      summary += `Special Instructions: ${specialInstructions}\n`;
+    }
+    summary += `\nSubtotal: £${subtotal.toFixed(2)}`;
+    summary += `\nDelivery: £${deliveryPrice.toFixed(2)}`;
+    summary += `\nTOTAL: £${total.toFixed(2)}`;
+
+    return summary;
+  };
+
+  const getDeliveryMethodText = () => {
+    if (deliveryOption === 'collection') return 'Collection';
+    if (deliveryOption === 'personal') return 'Personal Delivery';
+    return 'Royal Mail Delivery';
+  };
+
+  const handleEmailOrder = async () => {
+    if (!canSubmit) return;
+
+    setIsSendingEmail(true);
+    setEmailError('');
+
+    const orderNumber = `BB${Date.now().toString(36).toUpperCase()}`;
+    const orderDate = new Date().toLocaleDateString('en-GB', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Common template parameters
+    const baseParams = {
+      order_number: orderNumber,
+      order_date: orderDate,
+      customer_name: name,
+      customer_email: email,
+      customer_phone: phone,
+      items_list: buildItemsList(),
+      delivery_method: getDeliveryMethodText(),
+      delivery_date: formatDeliveryDate(deliveryDate),
+      delivery_address: deliveryOption === 'collection' ? 'Collection from shop' : `${address}, ${postcode}`,
+      special_instructions: specialInstructions || 'None',
+      subtotal: `£${subtotal.toFixed(2)}`,
+      delivery_cost: deliveryOption === 'collection' ? 'Free' : `£${deliveryPrice.toFixed(2)}`,
+      total: `£${total.toFixed(2)}`,
+      shop_email: SHOP_EMAIL,
+    };
+
+    try {
+      // Send order notification to shop owner
+      await emailjs.send(
+        EMAILJS_CONFIG.serviceId,
+        EMAILJS_CONFIG.ownerTemplateId,
+        {
+          ...baseParams,
+          to_email: SHOP_EMAIL,
+        },
+        EMAILJS_CONFIG.publicKey
+      );
+
+      // Send confirmation email to customer
+      await emailjs.send(
+        EMAILJS_CONFIG.serviceId,
+        EMAILJS_CONFIG.customerTemplateId,
+        {
+          ...baseParams,
+          to_email: email,
+          to_name: name,
+        },
+        EMAILJS_CONFIG.publicKey
+      );
+
+      setEmailSent(true);
+    } catch (error) {
+      console.error('Email send error:', error);
+      setEmailError('Failed to send order. Please try again or use Instagram to place your order.');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleInstagramOrder = () => {
+    const message = encodeURIComponent(buildOrderSummary());
+    // Instagram doesn't support pre-filled messages, so we'll copy to clipboard and redirect
+    navigator.clipboard.writeText(buildOrderSummary()).then(() => {
+      alert('Order details copied to clipboard! You will be redirected to Instagram. Please paste your order in a direct message.');
+      window.open('https://instagram.com/thebespokebouquetco', '_blank');
+    }).catch(() => {
+      // Fallback - just open Instagram
+      window.open('https://instagram.com/thebespokebouquetco', '_blank');
+    });
+  };
+
+  const canSubmit = name && email && phone && acceptedTerms && deliveryOption && deliveryDate &&
+    (deliveryOption === 'collection' || (address && postcode && isLocalDelivery !== null));
+
+  const allItems = [...items, ...customItems];
 
   return (
     <AnimatePresence>
@@ -165,66 +377,215 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
             <div className="flex-1 overflow-y-auto p-6">
               <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-                {/* Left Column - Delivery & Payment */}
+                {/* Left Column - Contact & Delivery */}
                 <div className="space-y-6">
 
-                  {/* Delivery Location */}
+                  {/* Contact Details */}
+                  <div className="bg-cream-light/50 p-6 rounded-lg border border-stone-200">
+                    <h3 className="font-serif text-xl text-stone-dark mb-4">Contact Details</h3>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm text-stone-600 mb-1">Full Name *</label>
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:border-rose-dust"
+                          placeholder="Your name"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-stone-600 mb-1">Email *</label>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:border-rose-dust"
+                          placeholder="your@email.com"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-stone-600 mb-1">Phone *</label>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:border-rose-dust"
+                          placeholder="07xxx xxxxxx"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Delivery Address */}
                   <div className="bg-cream-light/50 p-6 rounded-lg border border-stone-200">
                     <div className="flex items-center gap-2 mb-4">
                       <MapPin className="w-5 h-5 text-rose-dust" />
-                      <h3 className="font-serif text-xl text-stone-dark">Delivery Location</h3>
+                      <h3 className="font-serif text-xl text-stone-dark">Delivery Address</h3>
                     </div>
 
-                    <p className="text-sm text-stone-600 mb-4">
-                      Click on the map to select your delivery location. Delivery price will be calculated based on distance from our shop.
-                    </p>
-
-                    {/* Map */}
-                    <div className="h-64 rounded-lg overflow-hidden border border-stone-300 mb-4">
-                      <MapContainer
-                        center={[SHOP_LOCATION.lat, SHOP_LOCATION.lng]}
-                        zoom={13}
-                        style={{ height: '100%', width: '100%' }}
-                      >
-                        <TileLayer
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                        />
-                        <LocationMarker setLocation={setLocation} />
-                      </MapContainer>
-                    </div>
-
-                    {location && (
-                      <div className="bg-white p-4 rounded border border-stone-200">
-                        <p className="text-sm text-stone-600 mb-1">Selected Location:</p>
-                        <p className="text-sm font-medium text-stone-dark mb-2">{location.address}</p>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-stone-500">Distance from shop:</span>
-                          <span className="font-medium text-stone-dark">{distance.toFixed(1)} km</span>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm text-stone-600 mb-1">Postcode *</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={postcode}
+                            onChange={(e) => {
+                              setPostcode(e.target.value.toUpperCase());
+                              setIsLocalDelivery(null);
+                              setPostcodeError('');
+                            }}
+                            className="flex-1 px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:border-rose-dust uppercase"
+                            placeholder="e.g. SL4 3LR"
+                          />
+                          <button
+                            onClick={checkPostcode}
+                            disabled={isCheckingPostcode}
+                            className="px-6 py-3 bg-stone-dark text-white rounded-lg hover:bg-stone-800 transition-colors disabled:opacity-50"
+                          >
+                            {isCheckingPostcode ? 'Checking...' : 'Check'}
+                          </button>
                         </div>
+                        {postcodeError && (
+                          <p className="text-red-500 text-sm mt-1">{postcodeError}</p>
+                        )}
                       </div>
-                    )}
 
-                    {!location && (
-                      <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        <p className="text-sm">Please select a delivery location on the map</p>
+                      {isLocalDelivery !== null && (
+                        <div>
+                          <label className="block text-sm text-stone-600 mb-1">Address *</label>
+                          <textarea
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:border-rose-dust resize-none"
+                            rows={3}
+                            placeholder="House number, street name, town/city"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Delivery Options */}
+                    {isLocalDelivery !== null && (
+                      <div className="mt-6">
+                        <h4 className="font-serif text-lg text-stone-dark mb-3">Delivery Options</h4>
+
+                        {isLocalDelivery ? (
+                          <div className="space-y-3">
+                            <p className="text-sm text-green-700 bg-green-50 p-3 rounded-lg flex items-center gap-2">
+                              <Check className="w-4 h-4" />
+                              Great news! You're within our local delivery area.
+                            </p>
+
+                            <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                              deliveryOption === 'personal' ? 'border-rose-dust bg-rose-dust/5' : 'border-stone-200 hover:border-stone-300'
+                            }`}>
+                              <input
+                                type="radio"
+                                name="delivery"
+                                checked={deliveryOption === 'personal'}
+                                onChange={() => setDeliveryOption('personal')}
+                                className="sr-only"
+                              />
+                              <Truck className="w-6 h-6 text-rose-dust" />
+                              <div className="flex-1">
+                                <p className="font-serif text-stone-dark">Personal Delivery</p>
+                                <p className="text-sm text-stone-500">Hand-delivered to your door</p>
+                              </div>
+                              <span className="font-semibold text-stone-dark">£{PERSONAL_DELIVERY_PRICE}</span>
+                            </label>
+
+                            <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                              deliveryOption === 'collection' ? 'border-rose-dust bg-rose-dust/5' : 'border-stone-200 hover:border-stone-300'
+                            }`}>
+                              <input
+                                type="radio"
+                                name="delivery"
+                                checked={deliveryOption === 'collection'}
+                                onChange={() => setDeliveryOption('collection')}
+                                className="sr-only"
+                              />
+                              <Store className="w-6 h-6 text-rose-dust" />
+                              <div className="flex-1">
+                                <p className="font-serif text-stone-dark">Collection</p>
+                                <p className="text-sm text-stone-500">Pick up from our location</p>
+                              </div>
+                              <span className="font-semibold text-green-700">Free</span>
+                            </label>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-sm text-stone-600 bg-stone-50 p-3 rounded-lg flex items-center gap-2">
+                              <Package className="w-4 h-4" />
+                              Your location is outside our local delivery area. We'll send your order via Royal Mail.
+                            </p>
+
+                            <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                              deliveryOption === 'royalmail' ? 'border-rose-dust bg-rose-dust/5' : 'border-stone-200 hover:border-stone-300'
+                            }`}>
+                              <input
+                                type="radio"
+                                name="delivery"
+                                checked={deliveryOption === 'royalmail'}
+                                onChange={() => setDeliveryOption('royalmail')}
+                                className="sr-only"
+                              />
+                              <Package className="w-6 h-6 text-rose-dust" />
+                              <div className="flex-1">
+                                <p className="font-serif text-stone-dark">Royal Mail Delivery</p>
+                                <p className="text-sm text-stone-500">Delivered within 2-3 working days</p>
+                              </div>
+                              <span className="font-semibold text-stone-dark">£{ROYAL_MAIL_PRICE}</span>
+                            </label>
+                          </div>
+                        )}
+
+                        {/* Delivery Date */}
+                        {deliveryOption && (
+                          <div className="mt-6">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Calendar className="w-5 h-5 text-rose-dust" />
+                              <h4 className="font-serif text-lg text-stone-dark">
+                                {deliveryOption === 'collection' ? 'Collection Date' : 'Delivery Date'}
+                              </h4>
+                            </div>
+                            <div>
+                              <label className="block text-sm text-stone-600 mb-1">
+                                Select a date (at least 1 week from today) *
+                              </label>
+                              <input
+                                type="date"
+                                value={deliveryDate}
+                                onChange={(e) => setDeliveryDate(e.target.value)}
+                                min={getMinDeliveryDate()}
+                                className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:border-rose-dust"
+                              />
+                              {deliveryDate && (
+                                <p className="text-sm text-rose-dust mt-2">
+                                  {deliveryOption === 'collection' ? 'Collection' : 'Delivery'} on: {formatDeliveryDate(deliveryDate)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  {/* Payment Section (Placeholder for Stripe) */}
+                  {/* Special Instructions */}
                   <div className="bg-cream-light/50 p-6 rounded-lg border border-stone-200">
-                    <div className="flex items-center gap-2 mb-4">
-                      <CreditCard className="w-5 h-5 text-rose-dust" />
-                      <h3 className="font-serif text-xl text-stone-dark">Payment Details</h3>
-                    </div>
-
-                    <div className="bg-stone-100 p-8 rounded border border-dashed border-stone-300 text-center">
-                      <Lock className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-                      <p className="text-sm text-stone-600">Stripe Payment Element will be embedded here</p>
-                      <p className="text-xs text-stone-400 mt-1">Secure payment processing via Stripe</p>
-                    </div>
+                    <h3 className="font-serif text-xl text-stone-dark mb-4">Special Instructions</h3>
+                    <textarea
+                      value={specialInstructions}
+                      onChange={(e) => setSpecialInstructions(e.target.value)}
+                      className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:border-rose-dust resize-none"
+                      rows={3}
+                      placeholder="Any special requests or delivery instructions..."
+                    />
                   </div>
 
                   {/* Terms and Conditions */}
@@ -239,20 +600,28 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                       <span className="text-sm text-stone-600">
                         I agree to the{' '}
                         <button
-                          onClick={() => setShowTerms(true)}
+                          onClick={(e) => { e.preventDefault(); setShowTerms(true); }}
                           className="text-rose-dust underline hover:text-stone-dark transition-colors"
                         >
                           Terms and Conditions
                         </button>
                       </span>
                     </label>
+                  </div>
 
-                    {!acceptedTerms && (
-                      <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded border border-amber-200 mt-3">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        <p className="text-sm">You must accept the terms and conditions to proceed</p>
-                      </div>
-                    )}
+                  {/* FAQ Section */}
+                  <div className="bg-cream-light/50 p-6 rounded-lg border border-stone-200">
+                    <h3 className="font-serif text-xl text-stone-dark mb-4">Frequently Asked Questions</h3>
+                    <div>
+                      {FAQ_ITEMS.map((item, index) => (
+                        <FAQAccordion
+                          key={index}
+                          item={item}
+                          isOpen={openFAQ === index}
+                          onToggle={() => setOpenFAQ(openFAQ === index ? null : index)}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -272,7 +641,24 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                             <h4 className="font-serif text-stone-dark">{item.name}</h4>
                             <p className="text-sm text-stone-500">Qty: {item.quantity}</p>
                           </div>
-                          <p className="font-medium text-stone-dark">${(item.price * item.quantity).toFixed(2)}</p>
+                          <p className="font-medium text-stone-dark">£{(item.price * item.quantity).toFixed(2)}</p>
+                        </div>
+                      ))}
+
+                      {customItems.map((item) => (
+                        <div key={item._id} className="flex gap-3">
+                          <div className="w-16 h-16 bg-stone-200 rounded overflow-hidden flex-shrink-0">
+                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-serif text-stone-dark">{item.name}</h4>
+                            <p className="text-xs text-stone-500">{item.size.name} ({item.size.numberOfRoses} roses)</p>
+                            {item.addOns.length > 0 && (
+                              <p className="text-xs text-rose-dust">+ {item.addOns.map(a => a.name).join(', ')}</p>
+                            )}
+                            <p className="text-sm text-stone-500">Qty: {item.quantity}</p>
+                          </div>
+                          <p className="font-medium text-stone-dark">£{item.totalPrice.toFixed(2)}</p>
                         </div>
                       ))}
                     </div>
@@ -281,35 +667,99 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     <div className="border-t border-stone-300 pt-4 space-y-2">
                       <div className="flex justify-between text-stone-600">
                         <span>Subtotal</span>
-                        <span className="font-medium">${subtotal.toFixed(2)}</span>
+                        <span className="font-medium">£{subtotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-stone-600">
                         <span>Delivery</span>
                         <span className="font-medium">
-                          {location ? `$${deliveryPrice.toFixed(2)}` : 'Select location'}
+                          {deliveryOption ? (deliveryOption === 'collection' ? 'Free' : `£${deliveryPrice.toFixed(2)}`) : 'Select option'}
                         </span>
                       </div>
                       <div className="flex justify-between text-lg font-serif text-stone-dark pt-2 border-t border-stone-300">
                         <span>Total</span>
-                        <span>${total.toFixed(2)}</span>
+                        <span>£{total.toFixed(2)}</span>
                       </div>
                     </div>
 
-                    {/* Checkout Button */}
-                    <button
-                      onClick={handleCheckout}
-                      disabled={!canCheckout || isProcessing}
-                      className="w-full mt-6 py-4 bg-stone-dark text-white font-serif tracking-widest uppercase text-sm hover:bg-stone-800 transition-all duration-300 rounded-sm flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isProcessing ? (
-                        <>Processing...</>
-                      ) : (
-                        <>
-                          <Lock className="w-4 h-4" />
-                          Complete Payment ${total.toFixed(2)}
-                        </>
-                      )}
-                    </button>
+                    {/* Email Success Screen */}
+                    {emailSent ? (
+                      <div className="mt-6">
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Check className="w-8 h-8 text-green-600" />
+                          </div>
+                          <h4 className="font-serif text-xl text-green-800 mb-2">Order Submitted!</h4>
+                          <p className="text-sm text-green-700 mb-4">
+                            We've sent a confirmation email to <strong>{email}</strong>
+                          </p>
+                          <p className="text-xs text-green-600">
+                            We'll be in touch shortly to confirm your order and arrange payment.
+                          </p>
+                        </div>
+                        <button
+                          onClick={onClose}
+                          className="w-full mt-4 py-3 bg-stone-dark text-white font-serif tracking-widest uppercase text-sm hover:bg-stone-800 transition-all duration-300 rounded-lg"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Validation Message */}
+                        {!canSubmit && (
+                          <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded border border-amber-200 mt-4">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <p className="text-sm">Please fill in all required fields and accept the terms</p>
+                          </div>
+                        )}
+
+                        {/* Email Error */}
+                        {emailError && (
+                          <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded border border-red-200 mt-4">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <p className="text-sm">{emailError}</p>
+                          </div>
+                        )}
+
+                        {/* Order Buttons */}
+                        <div className="mt-6 space-y-3">
+                          <p className="text-sm text-stone-500 text-center mb-4">
+                            Choose how you'd like to place your order:
+                          </p>
+
+                          <button
+                            onClick={handleEmailOrder}
+                            disabled={!canSubmit || isSendingEmail}
+                            className="w-full py-4 bg-stone-dark text-white font-serif tracking-widest uppercase text-sm hover:bg-stone-800 transition-all duration-300 rounded-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isSendingEmail ? (
+                              <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                Sending Order...
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="w-5 h-5" />
+                                Order via Email
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            onClick={handleInstagramOrder}
+                            disabled={!canSubmit || isSendingEmail}
+                            className="w-full py-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white font-serif tracking-widest uppercase text-sm hover:opacity-90 transition-all duration-300 rounded-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Instagram className="w-5 h-5" />
+                            Order via Instagram
+                          </button>
+                        </div>
+
+                        <p className="text-xs text-stone-400 text-center mt-4">
+                          We'll confirm your order and arrange payment separately
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -367,12 +817,11 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     <h4>5. Privacy</h4>
                     <p>
                       We respect your privacy and will never share your personal information with third parties without your consent.
-                      All payment information is processed securely through Stripe.
                     </p>
 
                     <h4>6. Contact</h4>
                     <p>
-                      For any questions or concerns, please contact us at hello@bespokebouquet.co
+                      For any questions or concerns, please contact us via Instagram or email.
                     </p>
                   </div>
                   <div className="p-6 border-t border-stone-200 bg-cream-light">

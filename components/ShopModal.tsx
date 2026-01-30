@@ -88,7 +88,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ isOpen, onClose, product, 
                             ))}
                         </div>
                         <h2 className="font-serif text-4xl text-stone-dark mb-2">{product.name}</h2>
-                        <p className="text-2xl font-light text-rose-dust mb-6">${product.price}.00</p>
+                        <p className="text-2xl font-light text-rose-dust mb-6">£{product.price}.00</p>
                         <p className="text-stone-600 leading-relaxed mb-8">{product.description}</p>
                         
                         <div className="p-4 bg-white rounded-lg border border-sage-soft/30 mb-6">

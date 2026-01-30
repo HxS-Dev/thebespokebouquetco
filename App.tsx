@@ -1,37 +1,71 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Menu, Instagram, Pin } from 'lucide-react';
+import { ShoppingBag, Menu, Instagram } from 'lucide-react';
 import { ThreeBackground } from './components/ThreeBackground';
-import { ShopModal } from './components/ShopModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutPage } from './components/CheckoutPage';
 import { LoadingScreen } from './components/LoadingScreen';
-import { fetchProducts, fetchPageContent } from './services/sanityMock';
-import { Product, CartItem } from './types';
+import { fetchPageContent } from './services/sanityMock';
+import { CartItem, CartItemCustom } from './types';
 import { Gallery } from './components/Gallery';
+import { Testimonials } from './components/Testimonials';
+import { ShopPage } from './components/ShopPage';
+
+// localStorage keys
+const CART_STORAGE_KEY = 'bespoke-bouquet-cart';
+const CUSTOM_CART_STORAGE_KEY = 'bespoke-bouquet-custom-cart';
+
+// Helper functions for localStorage
+const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+};
+
+const saveToStorage = <T,>(key: string, value: T): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error('Failed to save to localStorage:', error);
+  }
+};
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [products, setProducts] = useState<Product[]>([]);
   const [pageContent, setPageContent] = useState<any>(null);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Cart State
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  // Cart State - initialized from localStorage
+  const [cartItems, setCartItems] = useState<CartItem[]>(() =>
+    loadFromStorage<CartItem[]>(CART_STORAGE_KEY, [])
+  );
+  const [customCartItems, setCustomCartItems] = useState<CartItemCustom[]>(() =>
+    loadFromStorage<CartItemCustom[]>(CUSTOM_CART_STORAGE_KEY, [])
+  );
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isShopOpen, setIsShopOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: scrollRef, offset: ["start start", "end end"] });
   const smoothProgress = useSpring(scrollYProgress, { damping: 15 });
   const headerY = useTransform(smoothProgress, [0, 0.2], [0, -100]);
 
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    saveToStorage(CART_STORAGE_KEY, cartItems);
+  }, [cartItems]);
+
+  useEffect(() => {
+    saveToStorage(CUSTOM_CART_STORAGE_KEY, customCartItems);
+  }, [customCartItems]);
+
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [prods, content] = await Promise.all([fetchProducts(), fetchPageContent()]);
-        setProducts(prods);
+        const content = await fetchPageContent();
         setPageContent(content);
         setTimeout(() => setIsLoading(false), 2000);
       } catch (error) {
@@ -42,30 +76,31 @@ function App() {
     loadData();
   }, []);
 
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product);
-    setIsModalOpen(true);
-  };
-
-  const addToCart = (product: Product, quantity: number) => {
-    setCartItems(prev => {
-      const existing = prev.find(item => item._id === product._id);
-      if (existing) {
-        return prev.map(item => item._id === product._id ? { ...item, quantity: item.quantity + quantity } : item);
-      }
-      return [...prev, { ...product, quantity }];
-    });
+  const addCustomToCart = (item: CartItemCustom) => {
+    setCustomCartItems(prev => [...prev, item]);
     setIsCartOpen(true);
   };
 
   const removeFromCart = (id: string) => setCartItems(prev => prev.filter(item => item._id !== id));
+  const removeCustomFromCart = (id: string) => setCustomCartItems(prev => prev.filter(item => item._id !== id));
+
   const updateQuantity = (id: string, delta: number) => setCartItems(prev => prev.map(item => {
     if (item._id === id) return { ...item, quantity: Math.max(1, item.quantity + delta) };
     return item;
   }));
+  const updateCustomQuantity = (id: string, delta: number) => setCustomCartItems(prev => prev.map(item => {
+    if (item._id === id) {
+      const newQuantity = Math.max(1, item.quantity + delta);
+      const pricePerItem = item.totalPrice / item.quantity;
+      return { ...item, quantity: newQuantity, totalPrice: pricePerItem * newQuantity };
+    }
+    return item;
+  }));
 
-  const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-  const cartSubtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0) +
+                    customCartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const cartSubtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) +
+                       customCartItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
   const handleCheckout = () => {
     setIsCartOpen(false);
@@ -110,7 +145,7 @@ function App() {
                 {pageContent?.heroText || "Nature's Artistry, Hand-Tied."}
               </p>
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                onClick={() => document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => document.getElementById('gallery')?.scrollIntoView({ behavior: 'smooth' })}
                 className="px-8 py-3 bg-stone-dark text-white font-serif tracking-widest uppercase text-sm shadow-xl shadow-stone-dark/10">
                 Explore Collection
               </motion.button>
@@ -118,36 +153,13 @@ function App() {
           </section>
 
           {/* Gallery Section */}
-          <section className="relative z-20 bg-white/80 backdrop-blur-sm pt-24 pb-0 px-0 m-0">
+          <section id="gallery" className="relative z-20 bg-white/80 backdrop-blur-sm pt-24 pb-0 px-0 m-0">
             <h2 className="font-serif text-4xl md:text-5xl text-stone-dark text-center m-0 p-0">Gallery</h2>
-            <Gallery />
+            <Gallery onAddToCart={addCustomToCart} />
           </section>
 
-          {/* Shop Section */}
-          <section id="shop" className="min-h-screen relative z-20 bg-cream-light py-24">
-            <div className="container mx-auto px-6">
-              <div className="text-center mb-16">
-                <span className="text-rose-dust font-serif text-lg mb-2 block">Shop</span>
-                <h2 className="font-serif text-4xl md:text-5xl text-stone-dark">Current Arrangements</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {products.map(product => (
-                  <motion.div key={product._id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-                    className="group cursor-pointer" onClick={() => handleProductClick(product)}>
-                    <div className="relative overflow-hidden aspect-[3/4] mb-4 rounded-sm bg-stone-100 shadow-md group-hover:shadow-xl transition-all duration-300">
-                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"/>
-                      <div className="absolute inset-0 bg-stone-dark/0 group-hover:bg-stone-dark/10 transition-colors duration-300"/>
-                      <button className="absolute bottom-4 right-4 bg-white/90 backdrop-blur text-stone-dark px-4 py-2 text-xs uppercase tracking-widest font-bold opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 hover:bg-rose-dust hover:text-white">
-                        Quick View
-                      </button>
-                    </div>
-                    <h3 className="font-serif text-xl mb-1 group-hover:text-rose-dust transition-colors">{product.name}</h3>
-                    <p className="text-stone-500 font-sans text-sm">${product.price}.00</p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </section>
+          {/* Testimonials Section */}
+          <Testimonials onOrderClick={() => setIsShopOpen(true)} />
 
           {/* Footer */}
           <footer className="bg-stone-dark text-cream-light py-16 relative z-20">
@@ -157,8 +169,13 @@ function App() {
                 Bringing the ethereal beauty of the garden into your home with curated, seasonal arrangements.
               </p>
               <div className="flex justify-center gap-8 text-sm text-stone-500 uppercase tracking-widest">
-                <a href="#" className="hover:text-rose-dust flex items-center gap-2 transition-colors"><Instagram className="w-4 h-4" /> Instagram</a>
-                <a href="#" className="hover:text-rose-dust flex items-center gap-2 transition-colors"><Pin className="w-4 h-4" /> Pinterest</a>
+                <a href="https://instagram.com/thebespokebouquetco" target="_blank" rel="noopener noreferrer" className="hover:text-rose-dust flex items-center gap-2 transition-colors"><Instagram className="w-4 h-4" /> Instagram</a>
+                <a href="https://tiktok.com/@thebespokebouquetco" target="_blank" rel="noopener noreferrer" className="hover:text-rose-dust flex items-center gap-2 transition-colors">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                  </svg>
+                  TikTok
+                </a>
                 <a href="#" className="hover:text-rose-dust transition-colors">Contact</a>
               </div>
               <p className="mt-16 text-xs text-stone-600">© 2024 The Bespoke Bouquet Co. All rights reserved.</p>
@@ -166,9 +183,19 @@ function App() {
           </footer>
 
           {/* Interactive Elements */}
-          <ShopModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} onAddToCart={addToCart} />
-          <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cartItems} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} onCheckout={handleCheckout} />
-          <CheckoutPage isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} items={cartItems} subtotal={cartSubtotal} />
+          <CartDrawer
+            isOpen={isCartOpen}
+            onClose={() => setIsCartOpen(false)}
+            items={cartItems}
+            customItems={customCartItems}
+            onRemove={removeFromCart}
+            onRemoveCustom={removeCustomFromCart}
+            onUpdateQuantity={updateQuantity}
+            onUpdateCustomQuantity={updateCustomQuantity}
+            onCheckout={handleCheckout}
+          />
+          <CheckoutPage isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} items={cartItems} customItems={customCartItems} subtotal={cartSubtotal} />
+          <ShopPage isOpen={isShopOpen} onClose={() => setIsShopOpen(false)} onAddToCart={addCustomToCart} />
 
         </motion.div>
       )}

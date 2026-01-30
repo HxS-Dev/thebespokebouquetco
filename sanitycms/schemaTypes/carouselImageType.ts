@@ -38,5 +38,19 @@ export const carouselImageType = defineType({
       type: 'number',
       description: 'Order in which the image should appear in the carousel',
     },
+    {
+      name: 'bouquetSizes',
+      title: 'Available Bouquet Sizes',
+      type: 'array',
+      of: [{type: 'reference', to: [{type: 'bouquetSize'}]}],
+      description: 'Select the bouquet sizes available for this item',
+    },
+    {
+      name: 'addOns',
+      title: 'Available Add-Ons',
+      type: 'array',
+      of: [{type: 'reference', to: [{type: 'addOn'}]}],
+      description: 'Select the add-ons available for this item',
+    },
   ],
 })
