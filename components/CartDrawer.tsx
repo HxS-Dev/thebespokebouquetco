@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, ShoppingBag, CreditCard, Lock, Loader } from 'lucide-react';
+import { X, Trash2, ShoppingBag, CreditCard, Lock } from 'lucide-react';
 import { CartItem } from '../types';
 
 interface CartDrawerProps {
@@ -9,37 +9,21 @@ interface CartDrawerProps {
   items: CartItem[];
   onRemove: (id: string) => void;
   onUpdateQuantity: (id: string, delta: number) => void;
+  onCheckout: () => void;
 }
 
-export const CartDrawer: React.FC<CartDrawerProps> = ({ 
-  isOpen, 
-  onClose, 
-  items, 
+export const CartDrawer: React.FC<CartDrawerProps> = ({
+  isOpen,
+  onClose,
+  items,
   onRemove,
-  onUpdateQuantity 
+  onUpdateQuantity,
+  onCheckout
 }) => {
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const handleCheckout = () => {
-    setIsCheckingOut(true);
-    
-    // STRIPE INTEGRATION NOTE:
-    // In a real application, you would make an API call here to your backend
-    // to create a Stripe Checkout Session.
-    //
-    // Example:
-    // const response = await fetch('/api/create-checkout-session', { 
-    //   method: 'POST', 
-    //   body: JSON.stringify({ items }) 
-    // });
-    // const { url } = await response.json();
-    // window.location.href = url;
-
-    setTimeout(() => {
-      setIsCheckingOut(false);
-      alert("This is a demo. In a live version, you would be redirected to Stripe Checkout.");
-    }, 2000);
+    onCheckout();
   };
 
   return (
@@ -151,21 +135,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     </div>
                 </div>
                 
-                <button 
+                <button
                     onClick={handleCheckout}
-                    disabled={isCheckingOut}
-                    className="w-full py-4 bg-stone-dark text-white font-serif tracking-widest uppercase text-sm hover:bg-stone-800 transition-all duration-300 rounded-sm flex items-center justify-center gap-3 disabled:opacity-80 disabled:cursor-not-allowed"
+                    className="w-full py-4 bg-stone-dark text-white font-serif tracking-widest uppercase text-sm hover:bg-stone-800 transition-all duration-300 rounded-sm flex items-center justify-center gap-3"
                 >
-                    {isCheckingOut ? (
-                        <>
-                            <Loader className="w-4 h-4 animate-spin" />
-                            Processing...
-                        </>
-                    ) : (
-                        <>
-                            Checkout <CreditCard className="w-4 h-4" />
-                        </>
-                    )}
+                    Checkout <CreditCard className="w-4 h-4" />
                 </button>
                 <div className="flex justify-center items-center gap-2 mt-4 text-stone-400">
                     <Lock className="w-3 h-3" />

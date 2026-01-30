@@ -164,7 +164,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
 
         // Enhanced depth-based effects
         const yPos = 0; // No vertical offset
-        const opacity = isCurrent ? 1 : isAdjacent ? 0.85 : 0.6;
+        const opacity = isCurrent ? 1 : isAdjacent ? 0.9 : 0.7;
 
         return (
           <group key={idx} position={[x, yPos, z]} rotation={[0, angle, 0]}>
@@ -206,14 +206,8 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
         );
       })}
 
-      {/* Enhanced lighting for glass effect */}
-      <ambientLight intensity={0.5} color="#ffffff" />
-      <directionalLight position={[5, 8, 5]} intensity={1.2} color="#ffffff" castShadow />
-      <directionalLight position={[-5, 5, -5]} intensity={0.4} color="#e6f0ff" />
-      <pointLight position={[0, 5, 0]} intensity={1.5} color="#ffffff" decay={2} />
-
-      {/* Backlighting for depth */}
-      <pointLight position={[0, 2, -radius - 2]} intensity={0.6} color="#8899ff" decay={2} />
+      {/* Bright even lighting to preserve original image colors */}
+      <ambientLight intensity={2} color="#ffffff" />
     </group>
   );
 };

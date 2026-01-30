@@ -4,6 +4,7 @@ import { ShoppingBag, Menu, Instagram, Pin } from 'lucide-react';
 import { ThreeBackground } from './components/ThreeBackground';
 import { ShopModal } from './components/ShopModal';
 import { CartDrawer } from './components/CartDrawer';
+import { CheckoutPage } from './components/CheckoutPage';
 import { LoadingScreen } from './components/LoadingScreen';
 import { fetchProducts, fetchPageContent } from './services/sanityMock';
 import { Product, CartItem } from './types';
@@ -19,6 +20,7 @@ function App() {
   // Cart State
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: scrollRef, offset: ["start start", "end end"] });
@@ -63,6 +65,12 @@ function App() {
   }));
 
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const cartSubtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const handleCheckout = () => {
+    setIsCartOpen(false);
+    setIsCheckoutOpen(true);
+  };
 
   return (
     <div ref={scrollRef} className="relative bg-cream-light min-h-screen text-stone-dark selection:bg-rose-dust selection:text-white">
@@ -159,7 +167,8 @@ function App() {
 
           {/* Interactive Elements */}
           <ShopModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} onAddToCart={addToCart} />
-          <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cartItems} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />
+          <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cartItems} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} onCheckout={handleCheckout} />
+          <CheckoutPage isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} items={cartItems} subtotal={cartSubtotal} />
 
         </motion.div>
       )}
