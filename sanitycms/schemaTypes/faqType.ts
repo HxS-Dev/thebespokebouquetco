@@ -30,8 +30,41 @@ export const faqType = defineType({
             {
               name: 'answer',
               title: 'Answer',
-              type: 'text',
-              rows: 4,
+              type: 'array',
+              of: [
+                {
+                  type: 'block',
+                  styles: [
+                    {title: 'Normal', value: 'normal'},
+                    {title: 'Heading', value: 'h4'},
+                  ],
+                  marks: {
+                    decorators: [
+                      {title: 'Bold', value: 'strong'},
+                      {title: 'Italic', value: 'em'},
+                      {title: 'Underline', value: 'underline'},
+                    ],
+                    annotations: [
+                      {
+                        name: 'link',
+                        type: 'object',
+                        title: 'Link',
+                        fields: [
+                          {
+                            name: 'href',
+                            type: 'url',
+                            title: 'URL',
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                  lists: [
+                    {title: 'Bullet', value: 'bullet'},
+                    {title: 'Numbered', value: 'number'},
+                  ],
+                },
+              ],
               validation: (Rule) => Rule.required(),
             },
             {

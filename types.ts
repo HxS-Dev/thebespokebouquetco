@@ -70,6 +70,16 @@ export interface CartItemCustom {
   totalPrice: number;
 }
 
+export interface Testimonial {
+  _id: string;
+  image: {
+    asset: {
+      url: string;
+    };
+  };
+  order: number;
+}
+
 // Chart Data Types
 export interface SeasonalityData {
   month: string;

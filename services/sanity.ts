@@ -1,6 +1,6 @@
 import { createClient } from '@sanity/client';
 import imageUrlBuilder from '@sanity/image-url';
-import { Product, CarouselImage } from '../types';
+import { Product, CarouselImage, Testimonial } from '../types';
 
 // Initialize Sanity client
 export const client = createClient({
@@ -67,6 +67,21 @@ export const fetchCarouselImages = async (): Promise<CarouselImage[]> => {
       price,
       requiresExtraInfo
     }
+  }`;
+
+  return await client.fetch(query);
+};
+
+// Fetch testimonials from Sanity
+export const fetchTestimonials = async (): Promise<Testimonial[]> => {
+  const query = `*[_type == "testimonial"] | order(order asc) {
+    _id,
+    image {
+      asset-> {
+        url
+      }
+    },
+    order
   }`;
 
   return await client.fetch(query);
